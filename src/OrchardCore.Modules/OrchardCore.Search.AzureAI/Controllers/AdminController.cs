@@ -10,7 +10,6 @@ using OrchardCore.Admin;
 using OrchardCore.DisplayManagement;
 using OrchardCore.DisplayManagement.ModelBinding;
 using OrchardCore.DisplayManagement.Notify;
-using OrchardCore.Indexing;
 using OrchardCore.Navigation;
 using OrchardCore.Routing;
 using OrchardCore.Search.AzureAI.Models;
@@ -29,10 +28,8 @@ public sealed class AdminController : Controller
     private readonly AzureAISearchIndexManager _indexManager;
     private readonly AzureAISearchIndexSettingsService _indexSettingsService;
     private readonly IShapeFactory _shapeFactory;
-    private readonly AzureAIIndexDocumentManager _azureAIIndexDocumentManager;
     private readonly AzureAISearchDefaultOptions _azureAIOptions;
     private readonly INotifier _notifier;
-    private readonly IEnumerable<IContentItemIndexHandler> _contentItemIndexHandlers;
     private readonly ILogger _logger;
     private readonly IDisplayManager<AzureAISearchIndexSettings> _displayManager;
     private readonly AzureAISearchOptions _azureAISearchOptions;
@@ -47,10 +44,8 @@ public sealed class AdminController : Controller
         AzureAISearchIndexManager indexManager,
         AzureAISearchIndexSettingsService indexSettingsService,
         IShapeFactory shapeFactory,
-        AzureAIIndexDocumentManager azureAIIndexDocumentManager,
         IOptions<AzureAISearchDefaultOptions> azureAIOptions,
         INotifier notifier,
-        IEnumerable<IContentItemIndexHandler> contentItemIndexHandlers,
         IDisplayManager<AzureAISearchIndexSettings> displayManager,
         IOptions<AzureAISearchOptions> azureAISearchOptions,
         IUpdateModelAccessor updateModelAccessor,
@@ -64,10 +59,8 @@ public sealed class AdminController : Controller
         _indexManager = indexManager;
         _indexSettingsService = indexSettingsService;
         _shapeFactory = shapeFactory;
-        _azureAIIndexDocumentManager = azureAIIndexDocumentManager;
         _azureAIOptions = azureAIOptions.Value;
         _notifier = notifier;
-        _contentItemIndexHandlers = contentItemIndexHandlers;
         _logger = logger;
         _displayManager = displayManager;
         _azureAISearchOptions = azureAISearchOptions.Value;
@@ -127,7 +120,7 @@ public sealed class AdminController : Controller
             model.Indexes.Add(new AzureAIIndexEntry
             {
                 Index = index,
-                Shape = await _displayManager.BuildDisplayAsync(index, _updateModelAccessor.ModelUpdater, "SummaryAdmin")
+                Shape = await _displayManager.BuildDisplayAsync(index, _updateModelAccessor.ModelUpdater, "SummaryAdmin"),
             });
         }
 
@@ -147,7 +140,7 @@ public sealed class AdminController : Controller
         => RedirectToAction(nameof(Index),
             new RouteValueDictionary
             {
-                { _optionsSearch, model.Options.Search }
+                { _optionsSearch, model.Options.Search },
             });
 
 
@@ -285,7 +278,7 @@ public sealed class AdminController : Controller
             return NotConfigured();
         }
 
-        var settings = await _indexSettingsService.GetAsync(id);
+        var settings = await _indexSettingsService.FindByIdAsync(id);
 
         if (settings == null)
         {
@@ -312,7 +305,7 @@ public sealed class AdminController : Controller
             return BadRequest();
         }
 
-        var settings = await _indexSettingsService.GetAsync(id);
+        var settings = await _indexSettingsService.FindByIdAsync(id);
 
         if (settings == null)
         {
@@ -364,7 +357,7 @@ public sealed class AdminController : Controller
             return BadRequest();
         }
 
-        var settings = await _indexSettingsService.GetAsync(id);
+        var settings = await _indexSettingsService.FindByIdAsync(id);
 
         if (settings == null)
         {
@@ -376,13 +369,13 @@ public sealed class AdminController : Controller
         if (!exists)
         {
             // At this point we know that the index does not exists on remote server. Let's delete it locally.
-            await _indexSettingsService.DeleteAsync(id);
+            await _indexSettingsService.DeleteByIdAsync(id);
 
             await _notifier.SuccessAsync(H["Index <em>{0}</em> deleted successfully.", settings.IndexName]);
         }
         else if (await _indexManager.DeleteAsync(settings.IndexName))
         {
-            await _indexSettingsService.DeleteAsync(id);
+            await _indexSettingsService.DeleteByIdAsync(id);
 
             await _notifier.SuccessAsync(H["Index <em>{0}</em> deleted successfully.", settings.IndexName]);
         }
@@ -408,7 +401,7 @@ public sealed class AdminController : Controller
             return BadRequest();
         }
 
-        var settings = await _indexSettingsService.GetAsync(id);
+        var settings = await _indexSettingsService.FindByIdAsync(id);
 
         if (settings == null)
         {
@@ -438,7 +431,7 @@ public sealed class AdminController : Controller
             return BadRequest();
         }
 
-        var settings = await _indexSettingsService.GetAsync(id);
+        var settings = await _indexSettingsService.FindByIdAsync(id);
 
         if (settings == null)
         {
